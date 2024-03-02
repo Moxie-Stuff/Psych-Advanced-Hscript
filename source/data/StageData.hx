@@ -29,6 +29,25 @@ class StageData
 {
 	public static var forceNextDirectory:String = null;
 
+	public static inline function dummy():StageFile
+	{
+		return {
+			directory: "",
+			defaultZoom: 0.9,
+			isPixelStage: false,
+
+			boyfriend: [770, 100],
+			girlfriend: [400, 130],
+			opponent: [100, 100],
+			hide_girlfriend: false,
+
+			camera_boyfriend: [0, 0],
+			camera_opponent: [0, 0],
+			camera_girlfriend: [0, 0],
+			camera_speed: 1
+		};
+	}
+
 	public static function loadDirectory(SONG:SwagSong)
 	{
 		var stage:String = '';
@@ -74,5 +93,14 @@ class StageData
 			return null;
 		}
 		return cast Json.parse(rawJson);
+	}
+
+	inline public static function vanillaSongStage(songName):String
+	{
+		return switch (songName.toLowerCase())
+		{
+			default:
+				'stage';
+		}
 	}
 }

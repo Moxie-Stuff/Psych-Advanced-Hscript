@@ -112,42 +112,54 @@ class Main extends Sprite
 	#if CRASH_HANDLER
 	function onCrash(e:UncaughtErrorEvent):Void
 	{
-		var errMsg:String = "";
-		var path:String;
-		var callStack:Array<StackItem> = CallStack.exceptionStack(true);
-		var dateNow:String = Date.now().toString();
+		var stack:Array<String> = [];
+		stack.push(e.error);
 
-		dateNow = dateNow.replace(" ", "_");
-		dateNow = dateNow.replace(":", "'");
-
-		path = "./crash/" + "PsychEngine_" + dateNow + ".txt";
-
-		for (stackItem in callStack)
+		for (stackItem in CallStack.exceptionStack(true))
 		{
 			switch (stackItem)
 			{
+				case CFunction:
+					stack.push('C Function');
+				case Module(m):
+					stack.push('Module ($m)');
 				case FilePos(s, file, line, column):
-					errMsg += file + " (line " + line + ")\n";
-				default:
-					Sys.println(stackItem);
+					stack.push('$file (line $line)');
+				case Method(classname, method):
+					stack.push('$classname (method $method)');
+				case LocalFunction(name):
+					stack.push('Local Function ($name)');
 			}
 		}
 
-		errMsg += "\nUncaught Error: "
-			+ e.error
-			+ "\nPlease report this error to the GitHub page: https://github.com/ShadowMario/FNF-PsychEngine\n\n> Crash Handler written by: sqirra-rng";
+		e.preventDefault();
+		e.stopPropagation();
+		e.stopImmediatePropagation();
 
-		if (!FileSystem.exists("./crash/"))
-			FileSystem.createDirectory("./crash/");
+		final msg:String = stack.join('\n');
 
-		File.saveContent(path, errMsg + "\n");
+		#if sys
+		try
+		{
+			if (!FileSystem.exists('logs'))
+				FileSystem.createDirectory('logs');
 
-		Sys.println(errMsg);
-		Sys.println("Crash dump saved in " + Path.normalize(path));
+			File.saveContent('logs/'
+				+ Lib.application.meta.get('file')
+				+ '-'
+				+ Date.now().toString().replace(' ', '-').replace(':', "'")
+				+ '.txt', msg
+				+ '\n');
+		}
+		catch (e:Dynamic)
+		{
+			lime.utils.Log.println("Error!\nClouldn't save the crash dump because:\n" + e);
+		}
+		#end
 
-		Application.current.window.alert(errMsg, "Error!");
-		DiscordClient.shutdown();
-		Sys.exit(1);
+		lime.utils.Log.println(msg);
+		Lib.application.window.alert(msg, 'Error!');
+		lime.system.System.exit(1);
 	}
 	#end
 }

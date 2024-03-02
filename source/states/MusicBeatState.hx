@@ -20,6 +20,7 @@ import song.Conductor.BPMChangeEvent;
 import song.Conductor;
 import states.game.PlayState;
 import states.substates.CustomFadeTransition;
+import data.BaseStage;
 
 class MusicBeatState extends FlxUIState
 {
@@ -132,49 +133,43 @@ class MusicBeatState extends FlxUIState
 	}
 
 	public static function switchState(nextState:FlxState)
-	{
-		// Custom made Trans in
-		var curState:Dynamic = FlxG.state;
-		var leState:MusicBeatState = curState;
-		if (!FlxTransitionableState.skipNextTransIn)
-		{
-			leState.openSubState(new CustomFadeTransition(0.6, false));
-			if (nextState == FlxG.state)
-			{
-				CustomFadeTransition.finishCallback = function()
-				{
-					FlxG.resetState();
-				};
-				// trace('resetted');
-			}
-			else
-			{
-				CustomFadeTransition.finishCallback = function()
-				{
-					FlxG.switchState(nextState);
-				};
-				// trace('changed state');
-			}
-			return;
-		}
-		FlxTransitionableState.skipNextTransIn = false;
 		FlxG.switchState(nextState);
-	}
 
 	public static function resetState()
+		FlxG.resetState();
+
+	override function startOutro(onOutroComplete:()->Void):Void
 	{
-		MusicBeatState.switchState(FlxG.state);
+		if (!FlxTransitionableState.skipNextTransIn)
+		{
+			openSubState(new CustomFadeTransition(0.6, false));
+
+			CustomFadeTransition.finishCallback = onOutroComplete;
+
+			return;
+		}
+
+		FlxTransitionableState.skipNextTransIn = false;
+
+		onOutroComplete();
 	}
 
 	public static function getState():MusicBeatState
 	{
-		var curState:Dynamic = FlxG.state;
-		var leState:MusicBeatState = curState;
-		return leState;
+		return cast(FlxG.state, MusicBeatState);
 	}
+
+	public var stages:Array<BaseStage> = [];
 
 	public function stepHit():Void
 	{
+		stagesFunc(function(stage:BaseStage)
+		{
+			stage.curStep = curStep;
+			stage.curDecStep = curDecStep;
+			stage.stepHit();
+		});
+
 		if (curStep % 4 == 0)
 			beatHit();
 	}
@@ -182,11 +177,22 @@ class MusicBeatState extends FlxUIState
 	public function beatHit():Void
 	{
 		// trace('Beat: ' + curBeat);
+		stagesFunc(function(stage:BaseStage)
+		{
+			stage.curBeat = curBeat;
+			stage.curDecBeat = curDecBeat;
+			stage.beatHit();
+		});
 	}
 
 	public function sectionHit():Void
 	{
 		// trace('Section: ' + curSection + ', Beat: ' + curBeat + ', Step: ' + curStep);
+		stagesFunc(function(stage:BaseStage)
+		{
+			stage.curSection = curSection;
+			stage.sectionHit();
+		});
 	}
 
 	function getBeatsOnSection()
@@ -195,5 +201,12 @@ class MusicBeatState extends FlxUIState
 		if (PlayState.SONG != null && PlayState.SONG.notes[curSection] != null)
 			val = PlayState.SONG.notes[curSection].sectionBeats;
 		return val == null ? 4 : val;
+	}
+
+	function stagesFunc(func:BaseStage->Void)
+	{
+		for (stage in stages)
+			if (stage != null && stage.exists && stage.active)
+				func(stage);
 	}
 }
